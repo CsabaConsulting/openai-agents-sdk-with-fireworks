@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Asteroids</title>
+<style>
+  :root {
+    --neon: #29f5ff;
+    --neon-soft: rgba(41, 245, 255, 0.55);
+    --accent: #ff2dd1;
+    --bg: #04060f;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--neon);
+    font-family: "SF Mono", "Menlo", "Consolas", monospace;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  #wrap { position: fixed; inset: 0; }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  #hud {
+    position: fixed; top: 14px; left: 16px; right: 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 14px; letter-spacing: 2px; text-transform: uppercase;
+    text-shadow: 0 0 8px var(--neon-soft);
+    pointer-events: none; z-index: 5;
+  }
+  #hud .row { display: flex; gap: 22px; }
+  #lives { letter-spacing: 6px; color: var(--accent); text-shadow: 0 0 8px var(--accent); }
+
+  #overlay {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; z-index: 10; pointer-events: none;
+    background: radial-gradient(circle at center, rgba(4,6,15,0) 40%, rgba(4,6,15,0.75) 100%);
+  }
+  #overlay h1 {
+    font-size: clamp(40px, 9vw, 110px); font-weight: 700; letter-spacing: 8px;
+    text-shadow: 0 0 18px var(--neon), 0 0 40px var(--neon-soft);
+    margin-bottom: 10px;
+  }
+  #overlay .sub { font-size: clamp(14px, 2.4vw, 20px); opacity: .8; letter-spacing: 4px; }
+  #overlay .keys { margin-top: 26px; font-size: 13px; letter-spacing: 2px; opacity: .7; line-height: 1.9; }
+  #overlay .hint { margin-top: 22px; color: var(--accent); text-shadow: 0 0 10px var(--accent); letter-spacing: 3px; }
+  #overlay.hidden { display: none; }
+
+  .blink { animation: blink 1.1s steps(2, start) infinite; }
+  @keyframes blink { 50% { opacity: .15; } }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game"></canvas>
+</div>
+
+<div id="hud">
+  <div class="row"><span>SCORE</span><span id="score">0</span></div>
+  <div class="row"><span>WAVE</span><span id="wave">1</span></div>
+  <div class="row">LIVES <span id="lives">▲▲▲</span></div>
+</div>
+
+<div id="overlay">
+  <h1>ASTEROIDS</h1>
+  <div class="sub">A NEON VECTOR DEMO</div>
+  <div class="keys">
+    ◀ ▶ &nbsp;ROTATE &nbsp;·&nbsp; ▲ THRUST &nbsp;·&nbsp; SPACE FIRE<br/>
+    H &nbsp;HYPERSPACE &nbsp;·&nbsp; P PAUSE
+  </div>
+  <div class="hint blink" id="hint">PRESS ANY KEY TO START</div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  const scoreEl = document.getElementById("score");
+  const waveEl = document.getElementById("wave");
+  const livesEl = document.getElementById("lives");
+  const overlay = document.getElementById("overlay");
+  const hint = document.getElementById("hint");
+
+  // --- World state ---
+  let W = 0, H = 0, DPR = 1;
+  let state = "menu";          // menu | playing | paused | dead | over
+  let score = 0, wave = 1, lives = 3;
+  let ship, asteroids, bullets, particles, stars, saucer;
+  let keys = {};
+  let lastShot = 0;
+  let invuln = 0;              // respawn invulnerability frames
+  let frame = 0;
+  let lastTime = 0;
+
+  // --- Tunables ---
+  const ROT_SPEED = 0.075;     // rad/frame
+  const THRUST = 0.09;
+  const FRICTION = 0.992;
+  const MAX_SPEED = 6.5;
+  const BULLET_SPEED = 9;
+  const BULLET_LIFE = 60;      // frames
+  const SHOOT_COOLDOWN = 14;   // frames
+  const SHIP_R = 11;
+
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W + "px";
+    canvas.style.height = H + "px";
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  // --- Starfield ---
+  function makeStars() {
+    stars = [];
+    const n = Math.floor((W * H) / 9000);
+    for (let i = 0; i < n; i++) {
+      stars.push({
+        x: Math.random() * W, y: Math.random() * H,
+        z: Math.random() * 0.8 + 0.2, // depth for twinkle/parallax
+        tw: Math.random() * Math.PI * 2
+      });
+    }
+  }
+  makeStars();
+
+  // --- Helpers ---
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const wrap = (p, max) => { if (p < 0) p += max; else if (p >= max) p -= max; return p; };
+
+  function newShip() {
+    return {
+      x: W / 2, y: H / 2, vx: 0, vy: 0, a: -Math.PI / 2,
+      r: SHIP_R, thrusting: false, alive: true
+    };
+  }
+
+  function spawnAsteroids(count, size = 3) {
+    // size: 3 = big, 2 = medium, 1 = small
+    for (let i = 0; i < count; i++) {
+      let x, y;
+      // spawn away from ship
+      do { x = rand(0, W); y = rand(0, H); }
+      while (ship && Math.hypot(x - ship.x, y - ship.y) < 160);
+      const speed = rand(0.6, 1.6) + wave * 0.06;
+      const ang = rand(0, Math.PI * 2);
+      asteroids.push(makeAsteroid(x, y, size, Math.cos(ang) * speed, Math.sin(ang) * speed));
+    }
+  }
+
+  function makeAsteroid(x, y, size, vx, vy) {
+    const baseR = size === 3 ? 46 : size === 2 ? 28 : 16;
+    const verts = 10 + Math.floor(rand(0, 4));
+    const shape = [];
+    for (let i = 0; i < verts; i++) {
+      const a = (i / verts) * Math.PI * 2;
+      shape.push({ a, r: baseR * rand(0.78, 1.18) });
+    }
+    return { x, y, vx, vy, r: baseR, size, shape, rot: rand(0, Math.PI * 2), vr: rand(-0.02, 0.02) };
+  }
+
+  function startWave() {
+    asteroids = [];
+    bullets = [];
+    spawnAsteroids(3 + wave, 3);
+    if (!ship) ship = newShip();
+    ship.x = W / 2; ship.y = H / 2; ship.vx = 0; ship.vy = 0; ship.a = -Math.PI / 2;
+    invuln = 120;
+  }
+
+  function startGame() {
+    score = 0; wave = 1; lives = 3;
+    particles = []; bullets = [];
+    ship = newShip();
+    startWave();
+    state = "playing";
+    overlay.classList.add("hidden");
+    updateHUD();
+  }
+
+  function updateHUD() {
+    scoreEl.textContent = score;
+    waveEl.textContent = wave;
+    livesEl.textContent = lives > 0 ? "▲".repeat(lives) : "×";
+  }
+
+  // --- Particles (explosions / thrust) ---
+  function explode(x, y, color, count = 26) {
+    for (let i = 0; i < count; i++) {
+      const a = rand(0, Math.PI * 2), s = rand(0.5, 4.5);
+      particles.push({
+        x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+        life: rand(28, 60), max: 60, color
+      });
+    }
+  }
+
+  function thrustParticle() {
+    const a = ship.a + Math.PI + rand(-0.3, 0.3);
+    const s = rand(1, 3);
+    particles.push({
+      x: ship.x - Math.cos(ship.a) * 10, y: ship.y - Math.sin(ship.a) * 10,
+      vx: Math.cos(a) * s + ship.vx * 0.4, vy: Math.sin(a) * s + ship.vy * 0.4,
+      life: rand(10, 22), max: 22, color: "#ffd86b"
+    });
+  }
+
+  // --- Shooting ---
+  function shoot() {
+    if (frame - lastShot < SHOOT_COOLDOWN) return;
+    lastShot = frame;
+    bullets.push({
+      x: ship.x + Math.cos(ship.a) * ship.r,
+      y: ship.y + Math.sin(ship.a) * ship.r,
+      vx: Math.cos(ship.a) * BULLET_SPEED + ship.vx,
+      vy: Math.sin(ship.a) * BULLET_SPEED + ship.vy,
+      life: BULLET_LIFE
+    });
+  }
+
+  // --- Hyperspace (classic risky teleport) ---
+  function hyperspace() {
+    ship.x = rand(0, W); ship.y = rand(0, H);
+    ship.vx *= 0.3; ship.vy *= 0.3;
+    explode(ship.x, ship.y, "#9b8cff", 10);
+  }
+
+  // --- Collision ---
+  function hit(a, b) {
+    return Math.hypot(a.x - b.x, a.y - b.y) < (a.r + b.r) * 0.82;
+  }
+
+  function destroyAsteroid(idx) {
+    const a = asteroids[idx];
+    explode(a.x, a.y, a.size === 3 ? "#29f5ff" : a.size === 2 ? "#7df9ff" : "#cdeeff", 18 + a.size * 6);
+    score += a.size === 3 ? 20 : a.size === 2 ? 50 : 100;
+    if (a.size > 1) {
+      for (let k = 0; k < 2; k++) {
+        const ang = rand(0, Math.PI * 2), sp = rand(1.2, 2.6);
+        asteroids.push(makeAsteroid(a.x, a.y, a.size - 1, Math.cos(ang) * sp, Math.sin(ang) * sp));
+      }
+    }
+    asteroids.splice(idx, 1);
+    updateHUD();
+  }
+
+  function killShip() {
+    if (invuln > 0) return;
+    explode(ship.x, ship.y, "#ff2dd1", 40);
+    ship.alive = false;
+    lives--;
+    updateHUD();
+    if (lives <= 0) {
+      state = "over";
+      showOverlay("GAME OVER", "FINAL SCORE " + score, "PRESS ANY KEY TO RESTART");
+    } else {
+      state = "dead";
+      setTimeout(() => {
+        if (state === "dead") {
+          ship = newShip();
+          startWavePositionsOnly();
+          state = "playing";
+          invuln = 120;
+        }
+      }, 1400);
+    }
+  }
+
+  function startWavePositionsOnly() {
+    // reset ship position without respawning all asteroids
+    ship.x = W / 2; ship.y = H / 2; ship.vx = 0; ship.vy = 0; ship.a = -Math.PI / 2;
+  }
+
+  function nextWave() {
+    wave++;
+    updateHUD();
+    startWave();
+  }
+
+  // --- Input ---
+  window.addEventListener("keydown", (e) => {
+    if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Space"," ","h","H","p","P"].includes(e.key) || e.code === "Space") {
+      e.preventDefault();
+    }
+    keys[e.code] = true;
+
+    if (state === "menu" || state === "over") { startGame(); return; }
+    if (state === "paused") { state = "playing"; overlay.classList.add("hidden"); return; }
+
+    if (state === "playing") {
+      if (e.code === "Space") shoot();
+      if (e.key === "h" || e.key === "H") hyperspace();
+      if (e.key === "p" || e.key === "P") {
+        state = "paused";
+        showOverlay("PAUSED", "", "PRESS P TO RESUME");
+      }
+    }
+  }, { passive: false });
+
+  window.addEventListener("keyup", (e) => { keys[e.code] = false; });
+
+  function showOverlay(h1, sub, hintTxt) {
+    overlay.querySelector("h1").textContent = h1;
+    overlay.querySelector(".sub").textContent = sub;
+    hint.textContent = hintTxt;
+    hint.className = "hint blink";
+    overlay.classList.remove("hidden");
+  }
+
+  // --- Update ---
+  function update() {
+    if (state !== "playing") return;
+    frame++;
+
+    // Ship control
+    if (keys["ArrowLeft"]) ship.a -= ROT_SPEED;
+    if (keys["ArrowRight"]) ship.a += ROT_SPEED;
+    ship.thrusting = !!keys["ArrowUp"];
+    if (ship.thrusting) {
+      ship.vx += Math.cos(ship.a) * THRUST;
+      ship.vy += Math.sin(ship.a) * THRUST;
+      if (frame % 2 === 0) thrustParticle();
+    }
+    // friction + clamp
+    ship.vx *= FRICTION; ship.vy *= FRICTION;
+    const sp = Math.hypot(ship.vx, ship.vy);
+    if (sp > MAX_SPEED) { ship.vx = ship.vx / sp * MAX_SPEED; ship.vy = ship.vy / sp * MAX_SPEED; }
+
+    ship.x = wrap(ship.x + ship.vx, W);
+    ship.y = wrap(ship.y + ship.vy, H);
+    if (invuln > 0) invuln--;
+
+    // Bullets
+    for (let i = bullets.length - 1; i >= 0; i--) {
+      const b = bullets[i];
+      b.x = wrap(b.x + b.vx, W); b.y = wrap(b.y + b.vy, H);
+      b.life--;
+      if (b.life <= 0) bullets.splice(i, 1);
+    }
+
+    // Asteroids
+    for (const a of asteroids) {
+      a.x = wrap(a.x + a.vx, W); a.y = wrap(a.y + a.vy, H);
+      a.rot += a.vr;
+    }
+
+    // Bullet-asteroid
+    for (let i = bullets.length - 1; i >= 0; i--) {
+      const b = bullets[i];
+      for (let j = asteroids.length - 1; j >= 0; j--) {
+        if (hit(b, asteroids[j])) {
+          bullets.splice(i, 1);
+          destroyAsteroid(j);
+          break;
+        }
+      }
+    }
+
+    // Ship-asteroid
+    if (ship.alive && invuln <= 0) {
+      for (const a of asteroids) {
+        if (hit(ship, a)) { killShip(); break; }
+      }
+    }
+
+    // Particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx; p.y += p.vy; p.vx *= 0.96; p.vy *= 0.96; p.life--;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+
+    // Stars twinkle
+    for (const s of stars) s.tw += 0.05;
+
+    // Wave clear
+    if (asteroids.length === 0 && state === "playing") nextWave();
+  }
+
+  // --- Drawing ---
+  function strokeShape(points, color, glow = 12, width = 2) {
+    ctx.beginPath();
+    for (let i = 0; i < points.length; i++) {
+      const p = points[i];
+      if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+    }
+    ctx.closePath();
+    ctx.shadowBlur = glow;
+    ctx.shadowColor = color;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.stroke();
+  }
+
+  function drawStars() {
+    ctx.shadowBlur = 0;
+    for (const s of stars) {
+      const tw = 0.5 + 0.5 * Math.sin(s.tw);
+      ctx.globalAlpha = 0.25 + s.z * 0.6 * tw;
+      ctx.fillStyle = "#9fd0ff";
+      ctx.fillRect(s.x, s.y, s.z * 2, s.z * 2);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawShip() {
+    if (!ship || !ship.alive) return;
+    const flick = invuln > 0 && Math.floor(frame / 4) % 2 === 0;
+    if (flick) return; // blink while invulnerable
+    const p = ship;
+    const nose = { x: p.x + Math.cos(p.a) * p.r, y: p.y + Math.sin(p.a) * p.r };
+    const left = { x: p.x + Math.cos(p.a + 2.5) * p.r, y: p.y + Math.sin(p.a + 2.5) * p.r };
+    const right = { x: p.x + Math.cos(p.a - 2.5) * p.r, y: p.y + Math.sin(p.a - 2.5) * p.r };
+    const tail = { x: p.x + Math.cos(p.a + Math.PI) * p.r * 0.6, y: p.y + Math.sin(p.a + Math.PI) * p.r * 0.6 };
+    strokeShape([nose, left, tail, right], "#29f5ff", 16, 2);
+    // thrust flame
+    if (p.thrusting && frame % 2 === 0) {
+      const f = { x: p.x + Math.cos(p.a + Math.PI) * (p.r + rand(6, 16)), y: p.y + Math.sin(p.a + Math.PI) * (p.r + rand(6, 16)) };
+      strokeShape([left, f, right], "#ffd86b", 10, 2);
+    }
+  }
+
+  function drawAsteroid(a) {
+    const pts = a.shape.map(s => ({
+      x: a.x + Math.cos(s.a + a.rot) * s.r,
+      y: a.y + Math.sin(s.a + a.rot) * s.r
+    }));
+    const col = a.size === 3 ? "#29f5ff" : a.size === 2 ? "#7df9ff" : "#cdeeff";
+    strokeShape(pts, col, 10, 2);
+  }
+
+  function drawBullet(b) {
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, 2.4, 0, Math.PI * 2);
+    ctx.shadowBlur = 12; ctx.shadowColor = "#fff7a8";
+    ctx.fillStyle = "#fff7a8";
+    ctx.fill();
+  }
+
+  function drawParticles() {
+    ctx.shadowBlur = 8;
+    for (const p of particles) {
+      ctx.globalAlpha = Math.max(0, p.life / p.max);
+      ctx.shadowColor = p.color;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function render() {
+    // trailing fade for neon trails
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.fillStyle = "rgba(4, 6, 15, 0.35)";
+    ctx.fillRect(0, 0, W, H);
+
+    drawStars();
+    if (asteroids) for (const a of asteroids) drawAsteroid(a);
+    if (bullets) for (const b of bullets) drawBullet(b);
+    if (particles) drawParticles();
+    drawShip();
+
+    ctx.shadowBlur = 0;
+  }
+
+  // --- Main loop ---
+  function loop(t) {
+    const dt = t - lastTime; lastTime = t;
+    update();
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  // initial empty world for the menu background
+  asteroids = []; bullets = []; particles = [];
+  ship = newShip();
+  spawnAsteroids(6, 3);  // ambient drifting rocks behind the menu
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
