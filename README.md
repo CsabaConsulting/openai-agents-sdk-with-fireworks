@@ -27,23 +27,33 @@ python -m pip install -r requirements.txt
 
 ## Fireworks configuration
 
-Both Python demos default to:
+All configuration lives in a local `.env` file that is **gitignored** and never committed. A tracked template is provided in `.env.example`.
+
+1. Copy the template:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Edit `.env` and set your Fireworks API key:
+
+   ```text
+   FIREWORKS_BASE_URL=https://api.fireworks.ai/inference/v1
+   FIREWORKS_MODEL=accounts/fireworks/models/glm-5p2
+   FIREWORKS_API_KEY=your_fireworks_key
+   ```
+
+The Python demos load `.env` automatically via `python-dotenv` (already in `requirements.txt`). You can also export the variables in your shell instead of using `.env`:
+
+```bash
+export FIREWORKS_API_KEY="your_fireworks_key"
+```
+
+Both demos use:
 
 ```text
 https://api.fireworks.ai/inference/v1
 accounts/fireworks/models/glm-5p2
-```
-
-Before running, add your Fireworks API key in the Python file:
-
-```python
-FIREWORKS_API_KEY = "ADD YOUR API KEY HERE!"
-```
-
-For shared code, prefer reading the key from the environment instead of committing it:
-
-```bash
-export FIREWORKS_API_KEY="your_fireworks_key"
 ```
 
 ## Run the demos

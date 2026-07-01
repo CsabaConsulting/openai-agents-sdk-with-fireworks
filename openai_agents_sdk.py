@@ -5,6 +5,7 @@ Lists files in the repository directory by giving the agent a function tool.
 
 import os
 
+from dotenv import load_dotenv
 from openai import AsyncOpenAI
 
 from agents import (
@@ -15,16 +16,20 @@ from agents import (
     set_tracing_disabled,
 )
 
+# Load configuration from a local, gitignored .env file (see .env.example).
+load_dotenv()
 
-FIREWORKS_BASE_URL = os.getenv("FIREWORKS_BASE_URL", "https://api.fireworks.ai/inference/v1")
-FIREWORKS_MODEL = os.getenv("FIREWORKS_MODEL", "accounts/fireworks/models/glm-5p2")
-FIREWORKS_API_KEY = "ADD YOUR API KEY HERE!"
 
 def require_env(name: str) -> str:
     value = os.getenv(name)
     if not value:
-        raise RuntimeError(f"Set {name} before running this script.")
+        raise RuntimeError(f"Set {name} in your .env file before running this script.")
     return value
+
+
+FIREWORKS_BASE_URL = os.getenv("FIREWORKS_BASE_URL", "https://api.fireworks.ai/inference/v1")
+FIREWORKS_MODEL = os.getenv("FIREWORKS_MODEL", "accounts/fireworks/models/glm-5p2")
+FIREWORKS_API_KEY = require_env("FIREWORKS_API_KEY")
 
 # Tracing posts to OpenAI's servers; disable it since we're using Fireworks.
 set_tracing_disabled(True)
