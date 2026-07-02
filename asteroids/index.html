@@ -80,6 +80,12 @@
     text-shadow: 0 0 8px var(--neon-soft);
   }
   .card:hover .play { background: rgba(41,245,255,0.12); }
+  .additions {
+    margin-top: 10px; font-size: 11px; letter-spacing: 1px; opacity: .85;
+    line-height: 1.6; color: #ffd86b; text-shadow: 0 0 8px rgba(255,216,107,0.5);
+    border-top: 1px dashed rgba(255,216,107,0.3); padding-top: 8px;
+  }
+  .additions b { color: #ffd86b; letter-spacing: 2px; }
 
   footer { margin-top: 8px; font-size: 11px; letter-spacing: 2px; opacity: .4; }
 </style>
@@ -111,6 +117,7 @@
       model: "GLM 5.2",
       path: "glm52/asteroids.html",
       notes: "Neon vector art, particle explosions, starfield.",
+      additions: "Collision fix — bullets had no radius, so shooting never hit. Added r:2.4 (an addition besides the one-shot prompt).",
       created: "2026-07-01"
     },
     {
@@ -144,6 +151,7 @@
         '<div>Created <b>' + v.created + '</b></div>' +
         '<div>' + (v.notes || "") + '</div>' +
       '</div>' +
+      (v.additions ? '<div class="additions"><b>BESIDES PROMPT:</b> ' + v.additions + '</div>' : '') +
       '<span class="play">▶ PLAY</span>';
     grid.appendChild(a);
   }
