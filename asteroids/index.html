@@ -86,6 +86,16 @@
     border-top: 1px dashed rgba(255,216,107,0.3); padding-top: 8px;
   }
   .additions b { color: #ffd86b; letter-spacing: 2px; }
+  .card.pending {
+    border-style: dashed; opacity: .55; cursor: not-allowed;
+  }
+  .card.pending:hover {
+    transform: none; border-color: rgba(41,245,255,0.25); box-shadow: none;
+  }
+  .card.pending .play {
+    border-color: var(--accent); color: var(--accent); text-shadow: 0 0 8px var(--accent);
+    cursor: not-allowed;
+  }
 
   footer { margin-top: 8px; font-size: 11px; letter-spacing: 2px; opacity: .4; }
 </style>
@@ -118,33 +128,44 @@
       path: "glm52/asteroids.html",
       notes: "Neon vector art, particle explosions, starfield.",
       additions: "Collision fix — bullets had no radius, so shooting never hit. Added r:2.4 (an addition besides the one-shot prompt).",
-      created: "2026-07-01"
+      created: "2026-07-01",
+      pending: false
     },
     {
       model: "Kimi 2.7 Code",
       path: "kimi27code/asteroids.html",
-      notes: "Green acid-neon style, momentum thrust, tight collision shapes.",
-      created: "2026-07-01"
+      notes: "Pending independent implementation (not yet generated).",
+      created: "—",
+      pending: true
     },
     {
       model: "DeepSeek v4 Pro",
       path: "deepseekv4pro/asteroids.html",
-      notes: "Purple-amber palette, glowing strokes, cinematic starfield.",
-      created: "2026-07-01"
+      notes: "Pending independent implementation (not yet generated).",
+      created: "—",
+      pending: true
+    },
+    {
+      model: "MiniMax M3",
+      path: "minimaxm3/asteroids.html",
+      notes: "Pending independent implementation (not yet generated).",
+      created: "—",
+      pending: true
     },
     {
       model: "Nemotron 3 Ultra",
       path: "nemotron3ultra/asteroids.html",
-      notes: "Lime-on-dark with gold thrust, parallax stars, procedural rock split.",
-      created: "2026-07-01"
+      notes: "Pending independent implementation (not yet generated).",
+      created: "—",
+      pending: true
     }
   ];
 
   const grid = document.getElementById("grid");
   for (const v of variations) {
     const a = document.createElement("a");
-    a.className = "card";
-    a.href = v.path;
+    a.className = "card" + (v.pending ? " pending" : "");
+    if (!v.pending) a.href = v.path;
     a.innerHTML =
       '<div class="model">' + v.model + '</div>' +
       '<div class="meta">' +
@@ -152,7 +173,7 @@
         '<div>' + (v.notes || "") + '</div>' +
       '</div>' +
       (v.additions ? '<div class="additions"><b>BESIDES PROMPT:</b> ' + v.additions + '</div>' : '') +
-      '<span class="play">▶ PLAY</span>';
+      '<span class="play">' + (v.pending ? "PENDING" : "▶ PLAY") + '</span>';
     grid.appendChild(a);
   }
 })();
