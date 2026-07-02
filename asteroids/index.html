@@ -43,6 +43,12 @@
     text-shadow: 0 0 8px var(--neon-soft);
   }
   .prompt::before { content: "ONE-SHOT PROMPT"; display:block; font-style: normal; font-size: 10px; letter-spacing: 3px; opacity:.5; margin-bottom: 6px; }
+  .disclaimer {
+    margin-top: 18px; max-width: 720px;
+    font-size: 11px; line-height: 1.7; letter-spacing: 1px;
+    opacity: .55; font-style: normal;
+    color: var(--accent);
+  }
 
   .grid {
     display: grid; gap: 18px; width: 100%; max-width: 760px;
@@ -111,6 +117,11 @@
       make the visuals cool, but don&rsquo;t complicate the game logic itself, it&rsquo;ll
       be client only for demo.&rdquo;
     </blockquote>
+    <div class="disclaimer">
+      Note: all files below were generated in the same Codex session. Later
+      variants may have been influenced by earlier ones, so they are not
+      guaranteed to be 100% independent model comparisons.
+    </div>
   </header>
 
   <div class="grid" id="grid"></div>
@@ -132,11 +143,11 @@
       pending: false
     },
     {
-      model: "Kimi 2.7 Code",
+      model: "Kimi K2.7 Code",
       path: "kimi27code/asteroids.html",
-      notes: "Pending independent implementation (not yet generated).",
-      created: "—",
-      pending: true
+      notes: "Green-on-ink acid neon, independent from-scratch implementation.",
+      created: "2026-07-02",
+      pending: false
     },
     {
       model: "DeepSeek v4 Pro",
