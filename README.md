@@ -8,7 +8,7 @@ Small demo workspace for calling Fireworks AI through OpenAI-compatible APIs and
 - `response_api.py` - Minimal OpenAI-compatible Responses API call against Fireworks.
 - `setup_venv.sh` - Helper script that creates `venv312` with Homebrew Python 3.12 and installs `openai-agents`.
 - `requirements.txt` - Pinned Python dependencies from the working environment.
-- `index.html` - Standalone tic-tac-toe landing page/demo. Open it directly in a browser.
+- `docs/` - Asteroids game benchmark and showcase comparing client-only implementations generated from a single prompt across different LLMs and coding harnesses (published via GitHub Pages).
 
 ## Setup
 
@@ -70,10 +70,46 @@ Simple Responses API demo:
 python response_api.py
 ```
 
-Standalone HTML page:
+Asteroids showcase gallery:
 
 ```bash
-open index.html
+open docs/index.html
+# Or directly open the Sonnet 5.5 implementation:
+open docs/sonnet55/index.html
+```
+
+## Asteroids Benchmark: Model Variations
+
+The `docs/` directory hosts a client-only Asteroids game benchmark comparing code generated from the exact same one-shot prompt across different models and coding harnesses:
+
+> "Let’s implement the classic asteroid game as a web page. I also want to be able to use cursor buttons to turn and move. Space is shooting. You can make the visuals cool, but don’t complicate the game logic itself, it’ll be client only for demo."
+
+### Implementations
+
+| Model | Harness | Inference Provider | Demo File | Highlights |
+| :--- | :--- | :--- | :--- | :--- |
+| **Anthropic Sonnet 5.5** | [Strands Code](https://github.com/CsabaConsulting/strands-code/) | AWS Bedrock | [`docs/sonnet55/index.html`](docs/sonnet55/index.html) | Single self-contained HTML page, neon glowing vector outlines, drifting starfield, particle explosions, screen shake. Added down-arrow braking. Full run log in [`docs/sonnet55/full_log.txt`](docs/sonnet55/full_log.txt). |
+| **GLM 5.2** | Codex | Fireworks.ai | [`docs/glm52/asteroids.html`](docs/glm52/asteroids.html) | Neon vector art, particle explosions, starfield, collision fix added for bullet radius. |
+| **Kimi K2.7 Code** | Codex | Fireworks.ai | [`docs/kimi27code/asteroids.html`](docs/kimi27code/asteroids.html) | Green-on-ink acid neon visuals, independent from-scratch implementation. |
+| **DeepSeek V4** | Codex | Fireworks.ai | [`docs/deepseekv4pro/asteroids.html`](docs/deepseekv4pro/asteroids.html) | Classic black canvas with cyan UI, includes generation response log (`docs/deepseekv4pro/response.md`). |
+| **MiniMax M3** | Codex | Fireworks.ai | `docs/minimaxm3/` | *Pending* |
+| **Nemotron 3 Ultra** | Codex | Fireworks.ai | `docs/nemotron3ultra/` | *Pending* |
+
+### Viewing the Demos
+
+You can open the main gallery locally or view it via GitHub Pages:
+
+```bash
+open docs/index.html
+```
+
+Or open individual implementations directly:
+
+```bash
+open docs/sonnet55/index.html
+open docs/glm52/asteroids.html
+open docs/kimi27code/asteroids.html
+open docs/deepseekv4pro/asteroids.html
 ```
 
 ## Notes

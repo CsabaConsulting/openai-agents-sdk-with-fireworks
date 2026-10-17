@@ -35,6 +35,9 @@
   .tagline { margin-top: 10px; letter-spacing: 3px; opacity: .7; font-size: 13px; text-transform: uppercase; }
   .context { margin-top: 14px; letter-spacing: 2px; font-size: 12px; opacity: .8; text-transform: uppercase; }
   .context b { color: var(--accent); font-weight: 600; text-shadow: 0 0 8px var(--accent); }
+  .context a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent); }
+  .context a:hover { text-shadow: 0 0 8px var(--accent); }
+  .disclaimer a { color: var(--accent); text-decoration: underline; }
   .prompt {
     margin-top: 24px; max-width: 720px;
     font-size: 13px; line-height: 1.75; letter-spacing: 1px;
@@ -110,7 +113,7 @@
   <header>
     <h1>ASTEROIDS</h1>
     <div class="tagline">Model Variations &middot; Client-Only Demos</div>
-    <div class="context">Harness: <b>Codex</b> &nbsp;&middot;&nbsp; Inference: <b>Fireworks.ai</b></div>
+    <div class="context">Harnesses: <b>Codex</b> &amp; <b><a href="https://github.com/CsabaConsulting/strands-code/" target="_blank" rel="noopener">Strands Code</a></b> &nbsp;&middot;&nbsp; Inference: <b>Fireworks.ai</b> &amp; <b>AWS Bedrock</b></div>
     <blockquote class="prompt" cite="prompt">
       &ldquo;Let&rsquo;s implement the classic asteroid game as a web page. I also want
       to be able to use cursor buttons to turn and move. Space is shooting. You can
@@ -118,25 +121,26 @@
       be client only for demo.&rdquo;
     </blockquote>
     <div class="disclaimer">
-      Note: all files below were generated in the same Codex session. Later
-      variants may have been influenced by earlier ones, so they are not
-      guaranteed to be 100% independent model comparisons.
+      Note: Earlier Chinese model variants were generated using Codex via Fireworks.ai.
+      Anthropic Sonnet 5.5 was generated independently using the <a href="https://github.com/CsabaConsulting/strands-code/" target="_blank" rel="noopener">Strands Code</a> coding harness via AWS Bedrock with the exact same prompt.
     </div>
   </header>
 
   <div class="grid" id="grid"></div>
 
-  <footer>Each card opens a self-contained asteroids.html built by a different model.</footer>
+  <footer>Each card opens a self-contained Asteroids demo built by a different model.</footer>
 
 <script>
 (() => {
   "use strict";
   // Variations registry. Add a new entry for each model version.
-  // path is relative to this index.html (inside the asteroids/ folder).
+  // path is relative to this index.html (inside the docs/ folder).
   const variations = [
     {
       model: "GLM 5.2",
       path: "glm52/asteroids.html",
+      harness: "Codex",
+      inference: "Fireworks.ai",
       notes: "Neon vector art, particle explosions, starfield.",
       additions: "Collision fix — bullets had no radius, so shooting never hit. Added r:2.4 (an addition besides the one-shot prompt).",
       created: "2026-07-01",
@@ -145,6 +149,8 @@
     {
       model: "Kimi K2.7 Code",
       path: "kimi27code/asteroids.html",
+      harness: "Codex",
+      inference: "Fireworks.ai",
       notes: "Green-on-ink acid neon, independent from-scratch implementation.",
       created: "2026-07-02",
       pending: false
@@ -152,13 +158,27 @@
     {
       model: "DeepSeek V4",
       path: "deepseekv4pro/asteroids.html",
+      harness: "Codex",
+      inference: "Fireworks.ai",
       notes: "Classic black canvas with cyan UI; provided independently by the user.",
       created: "2026-07-02",
       pending: false
     },
     {
+      model: "Sonnet 5.5",
+      path: "sonnet55/index.html",
+      harness: "Strands Code",
+      inference: "AWS Bedrock",
+      notes: "Anthropic Sonnet 5.5. Neon vector outlines, drifting starfield, particle explosions, screen shake.",
+      additions: "Down arrow brakes (added by model without prompt request). Full execution log in full_log.txt.",
+      created: "2026-10-16",
+      pending: false
+    },
+    {
       model: "MiniMax M3",
       path: "minimaxm3/asteroids.html",
+      harness: "Codex",
+      inference: "Fireworks.ai",
       notes: "Pending independent implementation (not yet generated).",
       created: "—",
       pending: true
@@ -166,6 +186,8 @@
     {
       model: "Nemotron 3 Ultra",
       path: "nemotron3ultra/asteroids.html",
+      harness: "Codex",
+      inference: "Fireworks.ai",
       notes: "Pending independent implementation (not yet generated).",
       created: "—",
       pending: true
@@ -181,6 +203,8 @@
       '<div class="model">' + v.model + '</div>' +
       '<div class="meta">' +
         '<div>Created <b>' + v.created + '</b></div>' +
+        (v.harness ? '<div>Harness <b>' + v.harness + '</b></div>' : '') +
+        (v.inference ? '<div>Inference <b>' + v.inference + '</b></div>' : '') +
         '<div>' + (v.notes || "") + '</div>' +
       '</div>' +
       (v.additions ? '<div class="additions"><b>BESIDES PROMPT:</b> ' + v.additions + '</div>' : '') +
